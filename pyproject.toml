@@ -1,0 +1,47 @@
+[project]
+name = "fastapi_aiograpi"
+version = "0.1.19"
+description = "FastAPI wrapper for Instagram API"
+dependencies = [
+    "aiograpi>=0.0.3",
+    "fastapi>=0.112.2",
+    "uvicorn>=0.30.6",
+    "python-dotenv>=1.0.1",
+    "sentry-sdk>=2.13.0",
+]
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">= 3.11"
+[[project.authors]]
+name = "tadeasf"
+email = "taddy.fort@gmail.com"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+fastapi_aiograpi = "fastapi_aiograpi.main:app"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.rye.scripts.build]
+cmd = ["sh", "-c", "rye sync && rye build && python version_incrementer.py && podman build -t fastapi_aiograpi ."]
+
+[tool.rye.scripts.install]
+cmd = ["pip", "install", "-e", "."]
+
+[tool.rye.scripts.podman-deploy]
+cmd = [
+    "sh",
+    "-c",
+    "podman rm -f fastapi_aiograpi || true && podman rmi -f fastapi_aiograpi || true && rye run build && podman build -t fastapi_aiograpi . && podman run -d --name fastapi_aiograpi -p 8000:8000 fastapi_aiograpi && podman logs -f fastapi_aiograpi"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
