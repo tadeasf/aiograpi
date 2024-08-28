@@ -1,6 +1,7 @@
 import aiohttp
 from typing import List
 import random
+from src.fastapi_aiograpi.utils.config_secrets import Secrets
 
 
 class ProxyManager:
@@ -30,14 +31,4 @@ class ProxyManager:
         return f"http://{random.choice(self.proxy_ips)}:6969"
 
 
-proxy_manager = ProxyManager(
-    [
-        "45.90.120.30",
-        "91.205.105.195",
-        "38.242.244.36",
-        "185.192.97.2",
-        "185.234.71.120",
-        "167.86.68.173",
-        "194.5.152.243",
-    ]
-)
+proxy_manager = ProxyManager(Secrets.PROXY.PROXY_IPS)

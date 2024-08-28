@@ -4,13 +4,13 @@ import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 from sentry_sdk.integrations.asyncio import AsyncioIntegration
-
+from src.fastapi_aiograpi.utils.config_secrets import Secrets
 
 sentry_sdk.init(
-    dsn="https://bae85dd9cd87761062eae2526ee397eb@o4507591670824960.ingest.de.sentry.io/4507856653779024",
+    dsn=Secrets.SENTRY.SENTRY_DSN,
     traces_sample_rate=0.5,  # Capture 100% of transactions for performance monitoring
     profiles_sample_rate=0.5,  # Capture 100% of profiles for performance monitoring
-    environment="development",
+    environment=Secrets.SENTRY.SENTRY_ENVIRONMENT,
     integrations=[
         FastApiIntegration(
             transaction_style="url",
