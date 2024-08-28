@@ -12,21 +12,12 @@ from aiograpi.exceptions import (
 import logging
 from typing import Optional
 from ...utils.session_manager import SessionManager
-from ...utils.proxy_manager import ProxyManager
+from ...utils.proxy_manager import proxy_manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 session_manager = SessionManager()
-proxy_manager = ProxyManager(
-    [
-        "vps1.example.com",
-        "vps2.example.com",
-        "vps3.example.com",
-        "vps4.example.com",
-        "vps5.example.com",
-    ]
-)
 
 
 class LoginRequest(BaseModel):
@@ -44,7 +35,9 @@ async def get_client():
     client = Client()
     client.delay_range = [1, 3]
     try:
-        proxy = await proxy_manager.get_working_proxy()
+        proxy = (
+            await proxy_manager.get_working_proxy()
+        )  # Use the imported proxy_manager
         client.set_proxy(proxy)
         yield client
     except Exception as e:
