@@ -8,8 +8,8 @@ from src.fastapi_aiograpi.utils.config_secrets import Secrets
 
 sentry_sdk.init(
     dsn=Secrets.SENTRY.SENTRY_DSN,
-    traces_sample_rate=0.5,  # Capture 100% of transactions for performance monitoring
-    profiles_sample_rate=0.5,  # Capture 100% of profiles for performance monitoring
+    traces_sample_rate=1.0,  # Capture 100% of transactions for performance monitoring
+    profiles_sample_rate=0.5,
     environment=Secrets.SENTRY.SENTRY_ENVIRONMENT,
     integrations=[
         FastApiIntegration(

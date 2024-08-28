@@ -13,6 +13,7 @@ import logging
 from typing import Optional
 from ...utils.session_manager import SessionManager
 from ...utils.proxy_manager import proxy_manager
+import sentry_sdk
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -35,13 +36,13 @@ async def get_client():
     client = Client()
     client.delay_range = [1, 3]
     try:
-        proxy = (
-            await proxy_manager.get_working_proxy()
-        )  # Use the imported proxy_manager
+        proxy = await proxy_manager.get_working_proxy()
         client.set_proxy(proxy)
+        sentry_sdk.set_context("proxy", {"used": proxy})
         yield client
     except Exception as e:
         logger.exception(f"Failed to get working proxy: {e}")
+        sentry_sdk.capture_exception(e)
         raise HTTPException(
             status_code=503,
             detail="No working proxies available. Please try again later.",
