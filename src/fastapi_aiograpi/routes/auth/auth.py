@@ -7,9 +7,7 @@ from aiograpi.exceptions import (
     FeedbackRequired,
     PleaseWaitFewMinutes,
     LoginRequired,
-    # ReloginAttemptExceeded,
-    # SelectContactPointRecoveryForm,
-    # RecaptchaChallengeForm,
+    ConnectProxyError,
 )
 import logging
 from typing import Optional
@@ -45,9 +43,16 @@ class LoginResponse(BaseModel):
 async def get_client():
     client = Client()
     client.delay_range = [1, 3]
-    client.set_proxy(proxy_manager.get_random_proxy())
     try:
+        proxy = await proxy_manager.get_working_proxy()
+        client.set_proxy(proxy)
         yield client
+    except Exception as e:
+        logger.exception(f"Failed to get working proxy: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="No working proxies available. Please try again later.",
+        )
     finally:
         client = None
 
@@ -64,6 +69,12 @@ async def login(request: LoginRequest, client: Client = Depends(get_client)):
             )
         else:
             raise HTTPException(status_code=401, detail="Login failed")
+    except ConnectProxyError as e:
+        logger.exception(f"Proxy connection error: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to connect to proxy. Please try again later.",
+        )
     except (
         BadPassword,
         LoginRequired,
@@ -71,11 +82,13 @@ async def login(request: LoginRequest, client: Client = Depends(get_client)):
         FeedbackRequired,
         PleaseWaitFewMinutes,
     ) as e:
-        logger.exception(e)
+        logger.exception(f"Login error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.exception("Unexpected error during login")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Unexpected error during login: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"An unexpected error occurred: {str(e)}"
+        )
 
 
 @router.post("/logout")
@@ -84,5 +97,5 @@ async def logout(client: Client = Depends(get_client)):
         session_manager.save_session({})  # Clear the session
         return {"success": True, "message": "Logged out successfully"}
     except Exception as e:
-        logger.exception("Unexpected error during logout")
+        logger.exception(f"Unexpected error during logout: {e}")
         raise HTTPException(status_code=500, detail=str(e))
