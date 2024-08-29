@@ -1,11 +1,14 @@
 from fastapi import FastAPI
-from src.fastapi_aiograpi.routes.auth import router as auth_router
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 from sentry_sdk.integrations.asyncio import AsyncioIntegration
 from src.fastapi_aiograpi.utils.config_secrets import Secrets
 from src.fastapi_aiograpi.utils.session_store import session_store
+from src.fastapi_aiograpi.routes import (
+    auth_router,
+)
+from src.fastapi_aiograpi.routes.profiles import profile_stats_router, highlights_router
 
 sentry_sdk.init(
     dsn=Secrets.SENTRY.SENTRY_DSN,
@@ -35,6 +38,10 @@ sentry_sdk.init(
 app = FastAPI()
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(
+    profile_stats_router, prefix="/profile_stats", tags=["profile_stats"]
+)
+app.include_router(highlights_router, prefix="/profiles", tags=["highlights"])
 
 
 @app.on_event("startup")
