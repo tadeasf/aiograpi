@@ -1,6 +1,6 @@
 [project]
 name = "fastapi_aiograpi"
-version = "0.27.0"
+version = "0.28.0"
 description = "FastAPI wrapper for Instagram API"
 dependencies = [
     "aiograpi>=0.0.3,<0.1.0",
