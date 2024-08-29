@@ -17,9 +17,14 @@ class Proxy:
     logger.info(f"Loaded {len(PROXY_IPS)} proxies from environment")
 
 
+class Postgres:
+    POSTGRES_URL = os.getenv("POSTGRES_URL")
+
+
 class Secrets:
     SENTRY = Sentry()
     PROXY = Proxy()
+    POSTGRES = Postgres()
 
 
 logger.info("Secrets loaded")

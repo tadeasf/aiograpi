@@ -4,7 +4,6 @@ from .config_secrets import Secrets
 import sentry_sdk
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -15,9 +14,11 @@ class ProxyManager:
 
     async def check_proxy(self, proxy: str) -> bool:
         try:
-            proxy_url = f"http://{proxy}"
+            proxy_url = (
+                f"http://{proxy}"  # Ensure the scheme matches the Squid configuration
+            )
             async with httpx.AsyncClient(
-                proxies={"https://": proxy_url}, timeout=10, verify=False
+                proxies={"http://": proxy_url}, timeout=10, verify=False
             ) as client:
                 response = await client.get(
                     "https://www.instagram.com", follow_redirects=True

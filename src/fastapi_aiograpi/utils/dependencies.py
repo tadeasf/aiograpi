@@ -1,22 +1,27 @@
-from fastapi import Depends, Path, HTTPException
+from fastapi import Path, HTTPException, Depends
 from aiograpi import Client
 from aiograpi.exceptions import LoginRequired, ClientError
-from .session_store import session_store
 from .proxy_manager import proxy_manager
+from ..database.postgresql_handler import get_session
+from ..utils.session_manager import SessionStore
 import sentry_sdk
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-async def get_client(username: str = Path(...)):
+async def get_client(
+    password: str, username: str = Path(...), session=Depends(get_session)
+):
     """
     Retrieves an aiograpi Client instance with session and proxy settings for the given username.
     """
     client = Client()
     client.delay_range = [1, 3]  # Add random delay between requests
+    session_store = SessionStore(session)
+
     try:
-        session = session_store.get_session(username)
+        session_data = session_store.get_session(username)
         proxy = session_store.get_proxy_for_user(username)
 
         if not proxy:
@@ -29,9 +34,9 @@ async def get_client(username: str = Path(...)):
 
         client.set_proxy(f"http://{proxy}")
 
-        if session:
+        if session_data:
             logger.info(f"Using existing session for user {username}")
-            client.set_settings(session)
+            client.set_settings(session_data)
             sentry_sdk.set_context(
                 "session", {"username": username, "status": "existing"}
             )
@@ -43,17 +48,15 @@ async def get_client(username: str = Path(...)):
                 logger.warning(
                     f"Session is invalid for user {username}, need to re-login: {str(e)}"
                 )
-                session = None  # Force re-login
+                session_data = None  # Force re-login
 
-        if not session:
+        if not session_data:
             logger.info(f"No valid session for user {username}, attempting to login")
-            # Here, instead of raising an exception, we should attempt to log in
-            # You need to implement a secure way to store and retrieve passwords
-            password = session_store.get_password(username)
-            if not password:
+            # Here, instead of raising an exception, attempt to log in safely
+            if not session_store.verify_password(username, password):
                 raise HTTPException(
                     status_code=401,
-                    detail="No stored credentials. Please log in via /auth/login endpoint.",
+                    detail="Invalid credentials. Please log in via /auth/login endpoint.",
                 )
 
             try:
