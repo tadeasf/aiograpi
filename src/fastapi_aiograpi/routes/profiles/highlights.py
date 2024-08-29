@@ -1,14 +1,15 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from pydantic import BaseModel
 from aiograpi import Client
 import logging
 import sentry_sdk
 from typing import List, Optional
-from fastapi_aiograpi.routes.auth.auth import get_client
 from ...utils.rate_limiter import rate_limiter
+from ...utils.dependencies import get_client
 import redis
 import json
 import os
+from aiograpi.exceptions import ClientError, ClientLoginRequired
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ class HighlightMediaResponse(BaseModel):
 
 @router.get("/{username}/highlight_media", response_model=HighlightMediaResponse)
 async def get_highlight_media(
-    username: str,
+    username: str = Path(...),
     client: Client = Depends(get_client),
     limit: int = Query(5, ge=1, le=20),
 ):
@@ -75,6 +76,18 @@ async def get_highlight_media(
 
         return HighlightMediaResponse(
             highlights=highlight_media, next_cursor=next_cursor
+        )
+    except ClientLoginRequired:
+        logger.error(f"Client not logged in for {username}")
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required. Please log in.",
+        )
+    except ClientError as e:
+        logger.error(f"Client error for {username}: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to fetch highlight media. The profile might be private or not exist.",
         )
     except Exception as e:
         logger.exception(f"Error fetching highlight media for {username}: {e}")
