@@ -1,16 +1,16 @@
 [project]
 name = "fastapi_aiograpi"
-version = "0.14.0"
+version = "0.15.0"
 description = "FastAPI wrapper for Instagram API"
 dependencies = [
     "aiograpi>=0.0.3,<0.1.0",
-    "fastapi>=0.112.2",
+    "fastapi[standard]>=0.112.2",
     "uvicorn>=0.30.6",
     "python-dotenv>=1.0.1",
     "sentry-sdk>=2.13.0",
-    "aiohttp>=3.10.5",
     "redis>=4.5.5",
     "asyncio>=3.4.3",
+    "httpx>=0.24.2",
 ]
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -27,6 +27,16 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/fastapi_aiograpi"]
 
-[tool.rye.scripts]
-podman-clean = "podman-compose down --remove-orphan"
-podman-deploy = "podman-compose -f docker-compose.yml up -d --build"
+[tool.rye.scripts.dev]
+cmd = [
+    "sh",
+    "-c",
+    "fastapi dev src/fastapi_aiograpi/main.py --port 5569"
+]
+
+[tool.rye.scripts.podman-deploy]
+cmd = [
+    "sh",
+    "-c",
+    "podman-compose down --remove-orphans && podman-compose up -d --build && podman-compose logs -f api"
+]
