@@ -5,14 +5,14 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 from sentry_sdk.integrations.asyncio import AsyncioIntegration
 from .utils.config_secrets import Secrets
-from .utils.session_store import session_store
+from .database.postgresql_handler import get_session
+from .utils.session_manager import SessionStore
 from .routes.auth import auth
 from .routes.profiles import profile_stats, highlights
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 sentry_sdk.init(
     dsn=Secrets.SENTRY.SENTRY_DSN,
@@ -67,7 +67,9 @@ app.include_router(highlights.router, prefix="/highlights", tags=["highlights"])
 
 @app.on_event("startup")
 async def startup_event():
-    session_store.load_sessions()
+    with next(get_session()) as session:
+        session_store = SessionStore(session)
+        session_store.load_sessions()
 
 
 @app.get("/")
