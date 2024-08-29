@@ -1,14 +1,18 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 from sentry_sdk.integrations.asyncio import AsyncioIntegration
-from src.fastapi_aiograpi.utils.config_secrets import Secrets
-from src.fastapi_aiograpi.utils.session_store import session_store
-from src.fastapi_aiograpi.routes import (
-    auth_router,
-)
-from src.fastapi_aiograpi.routes.profiles import profile_stats_router, highlights_router
+from .utils.config_secrets import Secrets
+from .utils.session_store import session_store
+from .routes.auth import auth
+from .routes.profiles import profile_stats, highlights
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 sentry_sdk.init(
     dsn=Secrets.SENTRY.SENTRY_DSN,
@@ -37,11 +41,28 @@ sentry_sdk.init(
 
 app = FastAPI()
 
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(
-    profile_stats_router, prefix="/profile_stats", tags=["profile_stats"]
-)
-app.include_router(highlights_router, prefix="/profiles", tags=["highlights"])
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    logger.error(f"HTTP error occurred: {exc.detail}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    logger.exception("An unexpected error occurred")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected error occurred. Please try again later."},
+    )
+
+
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(profile_stats.router, prefix="/profiles", tags=["profiles"])
+app.include_router(highlights.router, prefix="/highlights", tags=["highlights"])
 
 
 @app.on_event("startup")
