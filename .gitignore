@@ -11,3 +11,5 @@ wheels/
 .history
 .DS_Store
 .env
+sessions
+dump.rdb

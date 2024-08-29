@@ -6,7 +6,7 @@ A FastAPI wrapper for the aiograpi Instagram API client.
 
 [Add installation instructions here]
 
-Usage:
+## Usage
 
 [Add basic usage instructions here]
 
@@ -17,9 +17,9 @@ Usage:
 This request will attempt to log in using the provided credentials. If successful, it will return a JSON response with a success message and a session ID.
 
 ```sh
-curl -X POST http://localhost:8000/auth/login \
+curl -X POST "http://localhost:8000/auth/login?username=ahojkypet" \
 -H "Content-Type: application/json" \
--d '{"username": "ahojkypet", "password": "password"}'
+-d '{"password": "Argonek.007"}'
 ```
 
 * Logout
@@ -27,7 +27,15 @@ curl -X POST http://localhost:8000/auth/login \
 This request will log out the current user and clear the session.
 
 ```sh
-curl -X POST http://localhost:8000/auth/logout
+curl -X POST "http://localhost:8000/auth/logout?username=your_username"
+```
+
+* Get Profile Stats
+
+This request will return the number of posts, reels, and highlights for a given public Instagram profile.
+
+```sh
+curl http://localhost:8000/auth/profile_stats/{username}
 ```
 
 * Sentry Debug (for testing error reporting)
