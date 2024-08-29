@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from pydantic import BaseModel
 from aiograpi import Client
 from aiograpi.exceptions import (
@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 class LoginRequest(BaseModel):
-    username: str
     password: str
 
 
@@ -31,7 +30,7 @@ class LoginResponse(BaseModel):
     session_id: Optional[str] = None
 
 
-async def get_client(username: str):
+async def get_client(username: str = Query(...)):
     client = Client()
     client.delay_range = [1, 3]
     try:
@@ -61,37 +60,36 @@ async def get_client(username: str):
             status_code=503,
             detail="No working proxies available. Please try again later.",
         )
-    finally:
-        await client.close()
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest, client: Client = Depends(get_client)):
+async def login(
+    username: str = Query(...),
+    request: LoginRequest = Body(...),
+    client: Client = Depends(get_client),
+):
     try:
-        rate_limiter.check_rate_limit(request.username)
-        session = session_store.get_session(request.username)
+        rate_limiter.check_rate_limit(username)
+        session = session_store.get_session(username)
         if session:
             client.set_settings(session)
             sentry_sdk.add_breadcrumb(
                 category="auth",
                 message="Using existing session",
-                data={"username": request.username},
+                data={"username": username},
             )
-            await client.login(request.username, request.password)
-        else:
+        await client.login(username, request.password)
+        if not session:
+            session_store.save_session(username, client.get_settings(), client.proxy)
             sentry_sdk.add_breadcrumb(
                 category="auth",
-                message="Creating new session",
-                data={"username": request.username},
-            )
-            await client.login(request.username, request.password)
-            session_store.save_session(
-                request.username, client.get_settings(), client.proxy
+                message="Created new session",
+                data={"username": username},
             )
         sentry_sdk.add_breadcrumb(
             category="auth",
             message="Login successful",
-            data={"username": request.username, "proxy": client.proxy},
+            data={"username": username, "proxy": client.proxy},
         )
         return LoginResponse(
             success=True, message="Login successful", session_id=client.sessionid
@@ -122,7 +120,7 @@ async def login(request: LoginRequest, client: Client = Depends(get_client)):
 
 
 @router.post("/logout")
-async def logout(username: str, client: Client = Depends(get_client)):
+async def logout(username: str = Query(...), client: Client = Depends(get_client)):
     try:
         rate_limiter.check_rate_limit(username)
         session_store.save_session(username, {}, client.proxy)  # Clear the session
