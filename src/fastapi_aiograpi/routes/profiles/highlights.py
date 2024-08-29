@@ -1,38 +1,24 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Path
-from pydantic import BaseModel
 from aiograpi import Client
 import logging
 import sentry_sdk
-from typing import List, Optional
 from ...utils.rate_limiter import rate_limiter
 from ...utils.dependencies import get_client
-import redis
-import json
-import os
+from ...models.models import HighlightMedia, HighlightMediaResponse, MediaMetadata
 from aiograpi.exceptions import ClientError, ClientLoginRequired
+from sqlmodel import Session, select
+from ...database.postgresql_handler import get_session
+
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-# Initialize Redis client
-redis_host = os.getenv("REDIS_HOST", "localhost")
-redis_client = redis.Redis(host=redis_host, port=6379, db=0)
-
-
-class HighlightMedia(BaseModel):
-    highlight_id: str
-    media_urls: List[str]
-
-
-class HighlightMediaResponse(BaseModel):
-    highlights: List[HighlightMedia]
-    next_cursor: Optional[str]
 
 
 @router.get("/{username}/highlight_media", response_model=HighlightMediaResponse)
 async def get_highlight_media(
     username: str = Path(...),
     client: Client = Depends(get_client),
+    session: Session = Depends(get_session),
     limit: int = Query(5, ge=1, le=20),
 ):
     try:
@@ -40,39 +26,51 @@ async def get_highlight_media(
         user_info = await client.user_info_by_username(username)
         user_id = user_info.pk
 
-        # Check if we have stored progress for this user
-        progress_key = f"highlight_progress:{username}"
-        stored_progress = redis_client.get(progress_key)
+        # Fetch all grabbed highlights for this profile
+        statement = select(MediaMetadata).where(MediaMetadata.user_id == user_id)
+        stored_media_metadata = session.exec(statement).all()
+        stored_media_ids = {media.media_id for media in stored_media_metadata}
 
-        if stored_progress:
-            progress = json.loads(stored_progress)
-            start_index = progress["index"]
-            highlights = progress["highlights"]
-        else:
-            start_index = 0
-            highlights = await client.user_highlights(user_id)
+        highlights = await client.user_highlights(user_id)
+        filtered_highlights = [
+            highlight
+            for highlight in highlights
+            if highlight.id not in stored_media_ids
+        ]
 
-        end_index = min(start_index + limit, len(highlights))
+        end_index = min(limit, len(filtered_highlights))
 
         highlight_media = []
-        for highlight in highlights[start_index:end_index]:
+        for highlight in filtered_highlights[:end_index]:
             media_urls = []
             for item in highlight.items:
                 if item.video_url:
                     media_urls.append(item.video_url)
                 elif item.thumbnail_url:
                     media_urls.append(item.thumbnail_url)
+
+                # Store media metadata in PostgreSQL
+                media_metadata = MediaMetadata(
+                    media_id=highlight.id,
+                    media_pk=highlight.pk,
+                    url=item.video_url or item.thumbnail_url,
+                    media_type=highlight.media_type,
+                    product_type=highlight.product_type,
+                    user_id=user_id,
+                    username=username,
+                    caption_text=highlight.caption_text,
+                    like_count=highlight.like_count,
+                    comment_count=highlight.comment_count,
+                )
+                session.add(media_metadata)
+
             highlight_media.append(
                 HighlightMedia(highlight_id=highlight.id, media_urls=media_urls)
             )
 
-        next_cursor = str(end_index) if end_index < len(highlights) else None
+        next_cursor = str(end_index) if end_index < len(filtered_highlights) else None
 
-        # Store progress in Redis
-        progress = {"index": end_index, "highlights": highlights}
-        redis_client.set(
-            progress_key, json.dumps(progress), ex=3600
-        )  # Expire after 1 hour
+        session.commit()
 
         return HighlightMediaResponse(
             highlights=highlight_media, next_cursor=next_cursor

@@ -2,7 +2,7 @@ import asyncio
 from fastapi import APIRouter, Depends, Path, HTTPException
 from aiograpi import Client
 from aiograpi.exceptions import ClientLoginRequired, ClientError
-from pydantic import BaseModel
+from ...models.models import ProfileStats
 from ...utils.dependencies import get_client
 from ...utils.rate_limiter import rate_limiter
 import sentry_sdk
@@ -12,20 +12,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-class ProfileStats(BaseModel):
-    username: str
-    posts_count: int
-    reels_count: int
-    highlights_count: int
-    follower_count: int
-    following_count: int
-
-
 async def retry_with_backoff(func, max_retries=3, initial_delay=5):
     for attempt in range(max_retries):
         try:
             return await func()
-        except ClientError as e:
+        except ClientError as e:  # noqa: F841
             if attempt == max_retries - 1:
                 raise
             delay = initial_delay * (2**attempt)
