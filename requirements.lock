@@ -82,6 +82,8 @@ pydantic-core==2.18.2
     # via pydantic
 python-dotenv==1.0.1
     # via fastapi-aiograpi
+redis==5.0.8
+    # via fastapi-aiograpi
 requests==2.32.3
     # via moviepy
 sentry-sdk==2.13.0

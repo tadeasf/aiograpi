@@ -19,7 +19,7 @@ This request will attempt to log in using the provided credentials. If successfu
 ```sh
 curl -X POST "http://localhost:8000/auth/login?username=ahojkypet" \
 -H "Content-Type: application/json" \
--d '{"password": "Argonek.007"}'
+-d '{"password": "fuck"}'
 ```
 
 * Logout
