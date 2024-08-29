@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Body, Path
-from pydantic import BaseModel
+from ...models.models import LoginRequest, LoginResponse
 from aiograpi import Client
 from aiograpi.exceptions import (
     BadPassword,
@@ -10,23 +10,14 @@ from aiograpi.exceptions import (
     ConnectProxyError,
 )
 import logging
-from ...utils.session_store import session_store
 from ...utils.rate_limiter import rate_limiter
 from ...utils.dependencies import get_client
+from ...database.postgresql_handler import get_session
+from ...utils.session_manager import SessionStore
 import sentry_sdk
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-class LoginRequest(BaseModel):
-    password: str
-
-
-class LoginResponse(BaseModel):
-    success: bool
-    message: str
-    session_id: str
 
 
 @router.post("/login/{username}", response_model=LoginResponse)
@@ -34,20 +25,22 @@ async def login(
     username: str = Path(...),
     request: LoginRequest = Body(...),
     client: Client = Depends(get_client),
+    session=Depends(get_session),
 ):
     """
     Logs in a user with the given username and password, managing sessions and proxies.
     """
+    session_store = SessionStore(session)
     try:
         rate_limiter.check_rate_limit(username)
-        session = session_store.get_session(username)
+        session_data = session_store.get_session(username)
 
         login_via_session = False
         login_via_pw = False
 
-        if session:
+        if session_data:
             try:
-                client.set_settings(session)
+                client.set_settings(session_data)
                 await client.login(username, request.password)
 
                 try:
@@ -120,10 +113,15 @@ async def login(
 
 
 @router.post("/logout/{username}")
-async def logout(username: str = Path(...), client: Client = Depends(get_client)):
+async def logout(
+    username: str = Path(...),
+    client: Client = Depends(get_client),
+    session=Depends(get_session),
+):
     """
     Logs out a user, clearing their session data.
     """
+    session_store = SessionStore(session)
     try:
         rate_limiter.check_rate_limit(username)
         session_store.save_session(username, {}, client.proxy)  # Clear the session
