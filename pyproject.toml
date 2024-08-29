@@ -1,6 +1,6 @@
 [project]
 name = "fastapi_aiograpi"
-version = "0.24.0"
+version = "0.25.0"
 description = "FastAPI wrapper for Instagram API"
 dependencies = [
     "aiograpi>=0.0.3,<0.1.0",
@@ -8,9 +8,11 @@ dependencies = [
     "uvicorn>=0.30.6",
     "python-dotenv>=1.0.1",
     "sentry-sdk>=2.13.0",
-    "redis>=4.5.5",
     "asyncio>=3.4.3",
     "httpx>=0.24.2",
+    "psycopg2-binary>=2.9.9",
+    "sqlmodel>=0.0.21",
+    "bcrypt>=4.2.0",
 ]
 readme = "README.md"
 license = "GPL-3.0-or-later"

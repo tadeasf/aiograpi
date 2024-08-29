@@ -6,7 +6,11 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install --no-cache-dir .
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.lock
+
+# Ensure Sentry and other dependencies are installed
+RUN pip install --no-cache-dir psycopg2-binary
 
 EXPOSE 5569
 

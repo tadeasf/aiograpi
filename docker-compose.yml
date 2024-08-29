@@ -5,12 +5,19 @@ services:
     build: .
     ports:
       - "5569:5569"
-    environment:
-      - REDIS_HOST=redis
+    env_file:
+      - .env
     depends_on:
-      - redis
+      - db
 
-  redis:
-    image: redis:alpine
+  db:
+    image: postgres:alpine
     ports:
-      - "6379:6379"
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  
+volumes:
+  postgres_data:
